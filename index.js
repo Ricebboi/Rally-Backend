@@ -22,7 +22,7 @@ app.post('/create-payment-intent', async (req, res) => {
     res.json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
     console.error('Error creating payment intent:', error);
-    res.status(500).send(error);
+    res.status(500).send({ error: error.message });
   }
 });
 
@@ -40,18 +40,17 @@ app.post('/create-coach-account', async (req, res) => {
       },
       business_type: business_type || 'individual',
       individual: {
-        email: email,
-        first_name: first_name,
-        last_name: last_name,
-        dob: dob,
-        address: address,
-        phone: phone,
-        ssn_last_4: ssn_last_4,
+        email,
+        first_name,
+        last_name,
+        dob,
+        address,
+        phone,
+        ssn_last_4,
       },
-      company: business_type === 'company' ? { tax_id: tax_id } : undefined,
+      company: business_type === 'company' ? { tax_id } : undefined,
     });
 
-    // Generate account link
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
       refresh_url: 'https://rallycoaches.com/reauth',
@@ -63,7 +62,7 @@ app.post('/create-coach-account', async (req, res) => {
     res.json({ accountId: account.id, accountLink: accountLink.url });
   } catch (error) {
     console.error('Error creating coach account:', error);
-    res.status(500).send(error);
+    res.status(500).send({ error: error.message });
   }
 });
 
@@ -79,7 +78,7 @@ app.post('/generate-account-link', async (req, res) => {
     res.json({ accountLink: accountLink.url });
   } catch (error) {
     console.error('Error generating account link:', error);
-    res.status(500).send(error);
+    res.status(500).send({ error: error.message });
   }
 });
 
@@ -90,7 +89,7 @@ app.post('/retrieve-account-details', async (req, res) => {
     res.json(account);
   } catch (error) {
     console.error('Error retrieving account details:', error);
-    res.status(500).send(error);
+    res.status(500).send({ error: error.message });
   }
 });
 
@@ -108,7 +107,7 @@ app.post('/transfer-funds', async (req, res) => {
     res.json({ transfer });
   } catch (error) {
     console.error('Error transferring funds:', error);
-    res.status(500).send(error);
+    res.status(500).send({ error: error.message });
   }
 });
 
@@ -118,7 +117,8 @@ app.post('/check-coach-capabilities', async (req, res) => {
     const account = await stripe.accounts.retrieve(accountId);
     res.json({ capabilities: account.capabilities });
   } catch (error) {
-    res.status(500).send(error);
+    console.error('Error checking coach capabilities:', error);
+    res.status(500).send({ error: error.message });
   }
 });
 
