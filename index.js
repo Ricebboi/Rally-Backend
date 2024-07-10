@@ -64,6 +64,22 @@ app.post('/create-coach-account', async (req, res) => {
   }
 });
 
+app.post('/generate-account-link', async (req, res) => {
+  const { accountId } = req.body;
+  try {
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: 'https://rallycoaches.com/reauth',
+      return_url: 'https://rallycoaches.com/return',
+      type: 'account_onboarding',
+    });
+    res.json({ accountLink: accountLink.url });
+  } catch (error) {
+    console.error('Error generating account link:', error);
+    res.status(500).send(error);
+  }
+});
+
 app.post('/transfer-funds', async (req, res) => {
   console.log('Received request for /transfer-funds');
   const { amount, currency = 'usd', coachAccountId } = req.body;
