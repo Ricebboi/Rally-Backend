@@ -35,7 +35,17 @@ app.post('/create-coach-account', async (req, res) => {
         type: 'express',
         email,
         capabilities: {
+          card_payments: { requested: true },
           transfers: { requested: true },
+        },
+        business_type: 'individual',
+        individual: {
+          email: email,
+          // Add other required fields such as name, dob, address, etc.
+        },
+        tos_acceptance: {
+          date: Math.floor(Date.now() / 1000),
+          ip: req.ip, // Assumes you're not behind a proxy
         },
       });
       console.log('Coach account created:', account);
