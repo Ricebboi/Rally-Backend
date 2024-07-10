@@ -56,18 +56,24 @@ app.post('/create-coach-account', async (req, res) => {
             country: 'US',
           },
         },
-        tos_acceptance: {
-          date: Math.floor(Date.now() / 1000),
-          ip: req.ip, // Assumes you're not behind a proxy
-        },
       });
+  
+      // Generate account link
+      const accountLink = await stripe.accountLinks.create({
+        account: account.id,
+        refresh_url: 'https://your-website.com/reauth',
+        return_url: 'https://your-website.com/return',
+        type: 'account_onboarding',
+      });
+  
       console.log('Coach account created:', account);
-      res.json({ accountId: account.id });
+      res.json({ accountId: account.id, accountLink: accountLink.url });
     } catch (error) {
       console.error('Error creating coach account:', error);
       res.status(500).send(error);
     }
   });
+  
   
 app.post('/transfer-funds', async (req, res) => {
   console.log('Received request for /transfer-funds');
