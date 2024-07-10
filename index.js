@@ -11,7 +11,7 @@ app.get('/', (req, res) => {
 
 app.post('/create-payment-intent', async (req, res) => {
   console.log('Received request for /create-payment-intent');
-  const { amount, currency } = req.body;
+  const { amount, currency = 'usd' } = req.body;
   console.log('Request body:', req.body);
   try {
     const paymentIntent = await stripe.paymentIntents.create({
@@ -27,62 +27,51 @@ app.post('/create-payment-intent', async (req, res) => {
 });
 
 app.post('/create-coach-account', async (req, res) => {
-    console.log('Received request for /create-coach-account');
-    const { email } = req.body;
-    console.log('Request body:', req.body);
-    try {
-      const account = await stripe.accounts.create({
-        type: 'express',
-        email,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        business_type: 'individual',
-        individual: {
-          email: email,
-          first_name: 'First',
-          last_name: 'Last',
-          dob: {
-            day: 1,
-            month: 1,
-            year: 1990,
-          },
-          address: {
-            line1: '1234 Main Street',
-            city: 'San Francisco',
-            state: 'CA',
-            postal_code: '94111',
-            country: 'US',
-          },
-        },
-      });
-  
-      // Generate account link
-      const accountLink = await stripe.accountLinks.create({
-        account: account.id,
-        refresh_url: 'https://your-website.com/reauth',
-        return_url: 'https://your-website.com/return',
-        type: 'account_onboarding',
-      });
-  
-      console.log('Coach account created:', account);
-      res.json({ accountId: account.id, accountLink: accountLink.url });
-    } catch (error) {
-      console.error('Error creating coach account:', error);
-      res.status(500).send(error);
-    }
-  });
-  
-  
+  console.log('Received request for /create-coach-account');
+  const { email, first_name = 'First', last_name = 'Last', dob = { day: 1, month: 1, year: 1990 }, address = { line1: '1234 Main Street', city: 'San Francisco', state: 'CA', postal_code: '94111', country: 'US' } } = req.body;
+  console.log('Request body:', req.body);
+  try {
+    const account = await stripe.accounts.create({
+      type: 'express',
+      email,
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_type: 'individual',
+      individual: {
+        email: email,
+        first_name: first_name,
+        last_name: last_name,
+        dob: dob,
+        address: address,
+      },
+    });
+
+    // Generate account link
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: 'https://rallycoaches.com/reauth',  // Update with actual URL
+      return_url: 'https://rallycoaches.com/return',  // Update with actual URL
+      type: 'account_onboarding',
+    });
+
+    console.log('Coach account created:', account);
+    res.json({ accountId: account.id, accountLink: accountLink.url });
+  } catch (error) {
+    console.error('Error creating coach account:', error);
+    res.status(500).send(error);
+  }
+});
+
 app.post('/transfer-funds', async (req, res) => {
   console.log('Received request for /transfer-funds');
-  const { amount, coachAccountId } = req.body;
+  const { amount, currency = 'usd', coachAccountId } = req.body;
   console.log('Request body:', req.body);
   try {
     const transfer = await stripe.transfers.create({
       amount,
-      currency: 'usd',
+      currency,
       destination: coachAccountId,
     });
     console.log('Funds transferred:', transfer);
@@ -93,18 +82,17 @@ app.post('/transfer-funds', async (req, res) => {
   }
 });
 
+app.post('/check-coach-capabilities', async (req, res) => {
+  const { accountId } = req.body;
+  try {
+    const account = await stripe.accounts.retrieve(accountId);
+    res.json({ capabilities: account.capabilities });
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-app.post('/check-coach-capabilities', async (req, res) => {
-    const { accountId } = req.body;
-    try {
-      const account = await stripe.accounts.retrieve(accountId);
-      res.json({ capabilities: account.capabilities });
-    } catch (error) {
-      res.status(500).send(error);
-    }
-  });
-  
