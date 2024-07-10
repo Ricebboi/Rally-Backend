@@ -28,7 +28,7 @@ app.post('/create-payment-intent', async (req, res) => {
 
 app.post('/create-coach-account', async (req, res) => {
   console.log('Received request for /create-coach-account');
-  const { email, first_name = 'First', last_name = 'Last', dob = { day: 1, month: 1, year: 1990 }, address = { line1: '1234 Main Street', city: 'San Francisco', state: 'CA', postal_code: '94111', country: 'US' } } = req.body;
+  const { email, first_name, last_name, dob, address, phone, ssn_last_4, business_type, tax_id } = req.body;
   console.log('Request body:', req.body);
   try {
     const account = await stripe.accounts.create({
@@ -38,21 +38,24 @@ app.post('/create-coach-account', async (req, res) => {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
-      business_type: 'individual',
+      business_type: business_type || 'individual',
       individual: {
         email: email,
         first_name: first_name,
         last_name: last_name,
         dob: dob,
         address: address,
+        phone: phone,
+        ssn_last_4: ssn_last_4,
       },
+      company: business_type === 'company' ? { tax_id: tax_id } : undefined,
     });
 
     // Generate account link
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
-      refresh_url: 'https://rallycoaches.com/reauth',  // Update with actual URL
-      return_url: 'https://rallycoaches.com/return',  // Update with actual URL
+      refresh_url: 'https://rallycoaches.com/reauth',
+      return_url: 'https://rallycoaches.com/return',
       type: 'account_onboarding',
     });
 
@@ -76,6 +79,17 @@ app.post('/generate-account-link', async (req, res) => {
     res.json({ accountLink: accountLink.url });
   } catch (error) {
     console.error('Error generating account link:', error);
+    res.status(500).send(error);
+  }
+});
+
+app.post('/retrieve-account-details', async (req, res) => {
+  const { accountId } = req.body;
+  try {
+    const account = await stripe.accounts.retrieve(accountId);
+    res.json(account);
+  } catch (error) {
+    console.error('Error retrieving account details:', error);
     res.status(500).send(error);
   }
 });
