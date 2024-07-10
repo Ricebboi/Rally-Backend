@@ -27,21 +27,24 @@ app.post('/create-payment-intent', async (req, res) => {
 });
 
 app.post('/create-coach-account', async (req, res) => {
-  console.log('Received request for /create-coach-account');
-  const { email } = req.body;
-  console.log('Request body:', req.body);
-  try {
-    const account = await stripe.accounts.create({
-      type: 'express',
-      email,
-    });
-    console.log('Coach account created:', account);
-    res.json({ accountId: account.id });
-  } catch (error) {
-    console.error('Error creating coach account:', error);
-    res.status(500).send(error);
-  }
-});
+    console.log('Received request for /create-coach-account');
+    const { email } = req.body;
+    console.log('Request body:', req.body);
+    try {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        email,
+        capabilities: {
+          transfers: { requested: true },
+        },
+      });
+      console.log('Coach account created:', account);
+      res.json({ accountId: account.id });
+    } catch (error) {
+      console.error('Error creating coach account:', error);
+      res.status(500).send(error);
+    }
+  });
 
 app.post('/transfer-funds', async (req, res) => {
   console.log('Received request for /transfer-funds');
