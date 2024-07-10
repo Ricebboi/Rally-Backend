@@ -41,7 +41,20 @@ app.post('/create-coach-account', async (req, res) => {
         business_type: 'individual',
         individual: {
           email: email,
-          // Add other required fields such as name, dob, address, etc.
+          first_name: 'First',
+          last_name: 'Last',
+          dob: {
+            day: 1,
+            month: 1,
+            year: 1990,
+          },
+          address: {
+            line1: '1234 Main Street',
+            city: 'San Francisco',
+            state: 'CA',
+            postal_code: '94111',
+            country: 'US',
+          },
         },
         tos_acceptance: {
           date: Math.floor(Date.now() / 1000),
@@ -55,7 +68,7 @@ app.post('/create-coach-account', async (req, res) => {
       res.status(500).send(error);
     }
   });
-
+  
 app.post('/transfer-funds', async (req, res) => {
   console.log('Received request for /transfer-funds');
   const { amount, coachAccountId } = req.body;
@@ -78,3 +91,14 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+app.post('/check-coach-capabilities', async (req, res) => {
+    const { accountId } = req.body;
+    try {
+      const account = await stripe.accounts.retrieve(accountId);
+      res.json({ capabilities: account.capabilities });
+    } catch (error) {
+      res.status(500).send(error);
+    }
+  });
+  
