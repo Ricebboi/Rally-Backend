@@ -9,6 +9,35 @@ app.get('/', (req, res) => {
   res.send('Rally Backend Server');
 });
 
+// Create a new endpoint to handle /connect-stripe
+app.get('/connect-stripe', async (req, res) => {
+  try {
+    // Create a new Stripe account for the coach
+    const account = await stripe.accounts.create({
+      type: 'express',
+      country: 'US',
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+    });
+
+    // Generate an account link for onboarding
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: 'https://rallycoaches.com/reauth',
+      return_url: 'https://rallycoaches.com/return',
+      type: 'account_onboarding',
+    });
+
+    // Redirect the coach to the Stripe onboarding link
+    res.redirect(accountLink.url);
+  } catch (error) {
+    console.error('Error creating account link:', error);
+    res.status(500).send({ error: error.message });
+  }
+});
+
 app.post('/create-payment-intent', async (req, res) => {
   console.log('Received request for /create-payment-intent');
   const { amount, currency = 'usd' } = req.body;
