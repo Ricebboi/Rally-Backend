@@ -12,15 +12,24 @@ app.get('/', (req, res) => {
 // Create a new endpoint to handle /connect-stripe
 app.get('/connect-stripe', async (req, res) => {
   try {
-    // Create a new Stripe account for the coach
-    const account = await stripe.accounts.create({
-      type: 'express',
-      country: 'US',
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-    });
+    // Check if the coach has an existing Stripe account ID
+    const existingAccountId = req.query.account_id;
+
+    let account;
+    if (existingAccountId) {
+      // Retrieve the existing account
+      account = await stripe.accounts.retrieve(existingAccountId);
+    } else {
+      // Create a new Stripe account for the coach
+      account = await stripe.accounts.create({
+        type: 'express',
+        country: 'US',
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+      });
+    }
 
     // Generate an account link for onboarding
     const accountLink = await stripe.accountLinks.create({
@@ -39,15 +48,12 @@ app.get('/connect-stripe', async (req, res) => {
 });
 
 app.post('/create-payment-intent', async (req, res) => {
-  console.log('Received request for /create-payment-intent');
   const { amount, currency = 'usd' } = req.body;
-  console.log('Request body:', req.body);
   try {
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency,
     });
-    console.log('Payment intent created:', paymentIntent);
     res.json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
     console.error('Error creating payment intent:', error);
@@ -56,9 +62,7 @@ app.post('/create-payment-intent', async (req, res) => {
 });
 
 app.post('/create-coach-account', async (req, res) => {
-  console.log('Received request for /create-coach-account');
   const { email, first_name, last_name, dob, address, phone, ssn_last_4, business_type, tax_id } = req.body;
-  console.log('Request body:', req.body);
   try {
     const account = await stripe.accounts.create({
       type: 'express',
@@ -87,7 +91,6 @@ app.post('/create-coach-account', async (req, res) => {
       type: 'account_onboarding',
     });
 
-    console.log('Coach account created:', account);
     res.json({ accountId: account.id, accountLink: accountLink.url });
   } catch (error) {
     console.error('Error creating coach account:', error);
@@ -123,16 +126,13 @@ app.post('/retrieve-account-details', async (req, res) => {
 });
 
 app.post('/transfer-funds', async (req, res) => {
-  console.log('Received request for /transfer-funds');
   const { amount, currency = 'usd', coachAccountId } = req.body;
-  console.log('Request body:', req.body);
   try {
     const transfer = await stripe.transfers.create({
       amount,
       currency,
       destination: coachAccountId,
     });
-    console.log('Funds transferred:', transfer);
     res.json({ transfer });
   } catch (error) {
     console.error('Error transferring funds:', error);
@@ -152,30 +152,59 @@ app.post('/check-coach-capabilities', async (req, res) => {
 });
 
 app.post('/create-checkout-session', async (req, res) => {
-  const { priceId, coachAccountId } = req.body;
+  const { price, coachAccountId } = req.body;
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [
         {
-          price: priceId,
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Coaching Session',
+            },
+            unit_amount: price,
+          },
           quantity: 1,
         },
       ],
       payment_intent_data: {
-        application_fee_amount: 123, // Adjust as needed
+        application_fee_amount: Math.round(price * 0.15), // 15% platform fee
         transfer_data: {
           destination: coachAccountId,
         },
       },
-      success_url: 'https://example.com/success',
-      cancel_url: 'https://example.com/cancel',
+      success_url: 'https://www.rallycoaches.com/success',
+      cancel_url: 'https://www.rallycoaches.com/cancel',
     });
     res.json({ url: session.url });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     res.status(500).send({ error: error.message });
   }
+});
+
+app.post('/webhook', bodyParser.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Webhook signature verification failed.', err.message);
+    return res.sendStatus(400);
+  }
+
+  switch (event.type) {
+    case 'checkout.session.completed':
+      const session = event.data.object;
+      console.log('Payment received for session:', session);
+      break;
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+
+  res.json({ received: true });
 });
 
 const PORT = process.env.PORT || 3000;
