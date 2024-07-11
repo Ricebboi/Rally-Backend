@@ -26,7 +26,7 @@ app.get('/connect-stripe', async (req, res) => {
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
       refresh_url: 'https://rallycoaches.com/reauth',
-      return_url: 'https://rallycoaches.com/return',
+      return_url: 'https://rallycoaches.com',
       type: 'account_onboarding',
     });
 
