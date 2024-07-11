@@ -49,6 +49,17 @@ app.post('/create-coach-account', async (req, res) => {
         ssn_last_4,
       },
       company: business_type === 'company' ? { tax_id } : undefined,
+      controller: {
+        losses: {
+          payments: 'application',
+        },
+        fees: {
+          payer: 'application',
+        },
+        stripe_dashboard: {
+          type: 'express',
+        },
+      },
     });
 
     const accountLink = await stripe.accountLinks.create({
@@ -118,6 +129,33 @@ app.post('/check-coach-capabilities', async (req, res) => {
     res.json({ capabilities: account.capabilities });
   } catch (error) {
     console.error('Error checking coach capabilities:', error);
+    res.status(500).send({ error: error.message });
+  }
+});
+
+app.post('/create-checkout-session', async (req, res) => {
+  const { priceId, coachAccountId } = req.body;
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      payment_intent_data: {
+        application_fee_amount: 123, // Adjust as needed
+        transfer_data: {
+          destination: coachAccountId,
+        },
+      },
+      success_url: 'https://example.com/success',
+      cancel_url: 'https://example.com/cancel',
+    });
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('Error creating checkout session:', error);
     res.status(500).send({ error: error.message });
   }
 });
