@@ -49,17 +49,6 @@ app.post('/create-coach-account', async (req, res) => {
         ssn_last_4,
       },
       company: business_type === 'company' ? { tax_id } : undefined,
-      controller: {
-        losses: {
-          payments: 'application',
-        },
-        fees: {
-          payer: 'application',
-        },
-        stripe_dashboard: {
-          type: 'express',
-        },
-      },
     });
 
     const accountLink = await stripe.accountLinks.create({
