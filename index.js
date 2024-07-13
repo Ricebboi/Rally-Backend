@@ -1,8 +1,13 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors'); // Add this line
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
+
+// Use CORS middleware
+app.use(cors()); // Add this line
+
 app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
@@ -174,8 +179,8 @@ app.post('/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'subscription',
-      success_url: success_url || 'https://www.rallycoaches.com/success',
-      cancel_url: cancel_url || 'https://www.rallycoaches.com/cancel',
+      success_url: success_url || 'https://www.rallycoaches.com/payment-success',
+      cancel_url: cancel_url || 'https://www.rallycoaches.com/payment-canceled',
     });
     res.json({ url: session.url });
   } catch (error) {
