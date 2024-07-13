@@ -12,15 +12,11 @@ app.get('/', (req, res) => {
 // Create a new endpoint to handle /connect-stripe
 app.get('/connect-stripe', async (req, res) => {
   try {
-    // Check if the coach has an existing Stripe account ID
     const existingAccountId = req.query.account_id;
-
     let account;
     if (existingAccountId) {
-      // Retrieve the existing account
       account = await stripe.accounts.retrieve(existingAccountId);
     } else {
-      // Create a new Stripe account for the coach
       account = await stripe.accounts.create({
         type: 'express',
         country: 'US',
@@ -30,16 +26,12 @@ app.get('/connect-stripe', async (req, res) => {
         },
       });
     }
-
-    // Generate an account link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
       refresh_url: 'https://rallycoaches.com/reauth',
       return_url: 'https://rallycoaches.com',
       type: 'account_onboarding',
     });
-
-    // Redirect the coach to the Stripe onboarding link
     res.redirect(accountLink.url);
   } catch (error) {
     console.error('Error creating account link:', error);
@@ -83,14 +75,12 @@ app.post('/create-coach-account', async (req, res) => {
       },
       company: business_type === 'company' ? { tax_id } : undefined,
     });
-
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
       refresh_url: 'https://rallycoaches.com/reauth',
       return_url: 'https://rallycoaches.com/return',
       type: 'account_onboarding',
     });
-
     res.json({ accountId: account.id, accountLink: accountLink.url });
   } catch (error) {
     console.error('Error creating coach account:', error);
@@ -152,30 +142,40 @@ app.post('/check-coach-capabilities', async (req, res) => {
 });
 
 app.post('/create-checkout-session', async (req, res) => {
-  const { price, coachAccountId } = req.body;
+  const { success_url, cancel_url } = req.body;
   try {
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
+      payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Coaching Session',
+              name: 'Rally Monthly Membership',
+              description: 'Join the Rally community for $5/month. Enjoy premium coach listings, priority booking, exclusive resources, and ongoing support.',
             },
-            unit_amount: price,
+            recurring: {
+              interval: 'month',
+            },
+            unit_amount: 500, // $5 per month
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Rally One-Time Sign Up Fee',
+              description: 'Pay a one-time sign-up fee of $10 to join the Rally community. This fee covers the setup of your premium coach profile, verification process, and access to exclusive resources.',
+            },
+            unit_amount: 1000, // $10 one-time fee
           },
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        application_fee_amount: Math.round(price * 0.15), // 15% platform fee
-        transfer_data: {
-          destination: coachAccountId,
-        },
-      },
-      success_url: 'https://www.rallycoaches.com/success',
-      cancel_url: 'https://www.rallycoaches.com/cancel',
+      mode: 'subscription',
+      success_url: success_url || 'https://www.rallycoaches.com/success',
+      cancel_url: cancel_url || 'https://www.rallycoaches.com/cancel',
     });
     res.json({ url: session.url });
   } catch (error) {
